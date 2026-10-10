@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from ..models import Note
 from ..security import has_role
+from . import workspaces as workspace_service
 
 
 def _now() -> str:
@@ -19,13 +20,18 @@ def create_note(
     title: str,
     body: str = "",
     visibility: str = "private",
+    workspace_id: int | None = None,
 ) -> Note:
     if visibility not in ("private", "shared", "public"):
         raise ValueError(f"unknown visibility {visibility!r}")
+    if workspace_id is not None and not workspace_service.can_write_workspace(
+        conn, workspace_id=workspace_id, user_id=owner_id
+    ):
+        raise PermissionError("you may not add notes to this workspace")
     cur = conn.execute(
-        "INSERT INTO notes (owner_id, title, body, visibility, created_at, updated_at)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
-        (owner_id, title, body, visibility, _now(), _now()),
+        "INSERT INTO notes (owner_id, title, body, visibility, workspace_id, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (owner_id, title, body, visibility, workspace_id, _now(), _now()),
     )
     conn.commit()
     return get_note(conn, cur.lastrowid)
@@ -44,10 +50,11 @@ def list_notes(conn: sqlite3.Connection, *, user_id: int, limit: int, offset: in
         WHERE owner_id = ?
            OR visibility = 'public'
            OR id IN (SELECT note_id FROM shares WHERE user_id = ?)
+           OR workspace_id IN (SELECT workspace_id FROM workspace_members WHERE user_id = ?)
         ORDER BY updated_at DESC, id DESC
         LIMIT ? OFFSET ?
         """,
-        (user_id, user_id, limit, offset),
+        (user_id, user_id, user_id, limit, offset),
     ).fetchall()
     return [Note.from_row(r) for r in rows]
 
@@ -59,8 +66,9 @@ def count_notes(conn: sqlite3.Connection, *, user_id: int) -> int:
         WHERE owner_id = ?
            OR visibility = 'public'
            OR id IN (SELECT note_id FROM shares WHERE user_id = ?)
+           OR workspace_id IN (SELECT workspace_id FROM workspace_members WHERE user_id = ?)
         """,
-        (user_id, user_id),
+        (user_id, user_id, user_id),
     ).fetchone()
     return int(row["n"])
 
@@ -113,6 +121,10 @@ def share_role(conn: sqlite3.Connection, *, note_id: int, user_id: int) -> str |
 def can_read(conn: sqlite3.Connection, *, note: Note, user_id: int) -> bool:
     if note.owner_id == user_id or note.visibility == "public":
         return True
+    if note.workspace_id is not None and workspace_service.can_read_workspace(
+        conn, workspace_id=note.workspace_id, user_id=user_id
+    ):
+        return True
     role = share_role(conn, note_id=note.id, user_id=user_id)
     return role is not None and has_role(role, "viewer")
 
@@ -120,6 +132,10 @@ def can_read(conn: sqlite3.Connection, *, note: Note, user_id: int) -> bool:
 def can_edit(conn: sqlite3.Connection, *, note: Note, user_id: int) -> bool:
     if note.owner_id == user_id:
         return True
+    if note.workspace_id is not None:
+        return workspace_service.can_write_workspace(
+            conn, workspace_id=note.workspace_id, user_id=user_id
+        )
     role = share_role(conn, note_id=note.id, user_id=user_id)
     return role is not None and has_role(role, "editor")
 
