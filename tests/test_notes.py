@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db import connect, init_db
 from app.security import has_role, hash_password, issue_token, read_token, verify_password
+from app.services import export as export_service
 from app.services import notes as note_service
 from app.services import users as user_service
 
@@ -55,6 +56,26 @@ class NoteTests(unittest.TestCase):
         note = note_service.create_note(self.conn, owner_id=self.alice.id, title="keep")
         self.assertFalse(note_service.delete_note(self.conn, note_id=note.id, user_id=self.bob.id))
         self.assertTrue(note_service.delete_note(self.conn, note_id=note.id, user_id=self.alice.id))
+
+    def test_export_writes_a_header_and_the_visible_notes(self):
+        note_service.create_note(self.conn, owner_id=self.alice.id, title="one")
+        note_service.create_note(self.conn, owner_id=self.alice.id, title="two")
+        note_service.create_note(self.conn, owner_id=self.bob.id, title="bob only")
+        text = export_service.export_notes_csv(self.conn, user_id=self.alice.id)
+        lines = text.strip().splitlines()
+        self.assertEqual(lines[0], "id,title,visibility,created_at,updated_at")
+        self.assertIn("one", text)
+        self.assertNotIn("bob only", text)
+
+    def test_export_batches_stop_when_the_notes_run_out(self):
+        note_service.create_note(self.conn, owner_id=self.alice.id, title="only")
+        batches = list(export_service.iter_batches(self.conn, user_id=self.alice.id, batch_size=10))
+        self.assertEqual(len(batches), 1)
+        self.assertEqual(len(batches[0]), 1)
+
+    def test_export_rejects_a_zero_batch_size(self):
+        with self.assertRaises(ValueError):
+            list(export_service.iter_batches(self.conn, user_id=self.alice.id, batch_size=0))
 
     def test_listing_counts_only_what_the_user_may_see(self):
         note_service.create_note(self.conn, owner_id=self.alice.id, title="a")
