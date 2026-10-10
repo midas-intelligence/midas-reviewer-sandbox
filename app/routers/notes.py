@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
 
 from ..services import notes as note_service
+from ..services import tags as tag_service
 from .users import current_user
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -62,6 +63,30 @@ def create_note(body: NoteRequest, conn: sqlite3.Connection = Depends(_conn), us
         conn, owner_id=user.id, title=body.title, body=body.body, visibility=body.visibility
     )
     return note.__dict__
+
+
+@router.post("/{note_id}/tags", status_code=201)
+def add_tag(
+    note_id: int,
+    name: str = Query(min_length=1, max_length=32),
+    conn: sqlite3.Connection = Depends(_conn),
+    user=Depends(_user),
+):
+    if not tag_service.add_tag(conn, note_id=note_id, user_id=user.id, name=name):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "note not found")
+    return {"note_id": note_id, "tags": tag_service.tags_for_note(conn, note_id=note_id)}
+
+
+@router.delete("/{note_id}/tags", status_code=200)
+def remove_tag(
+    note_id: int,
+    name: str = Query(min_length=1, max_length=32),
+    conn: sqlite3.Connection = Depends(_conn),
+    user=Depends(_user),
+):
+    if not tag_service.remove_tag(conn, note_id=note_id, user_id=user.id, name=name):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "note or tag not found")
+    return {"note_id": note_id, "tags": tag_service.tags_for_note(conn, note_id=note_id)}
 
 
 @router.get("/{note_id}")
