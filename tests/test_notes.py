@@ -7,6 +7,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app.config import load_settings
 from app.db import connect, init_db
 from app.security import has_role, hash_password, issue_token, read_token, verify_password
 from app.services import notes as note_service
@@ -30,6 +31,32 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(read_token("s3cret", token)["sub"], 7)
         self.assertIsNone(read_token("other", token))
         self.assertIsNone(read_token("s3cret", token + "x"))
+
+
+class ConfigTests(unittest.TestCase):
+    def setUp(self):
+        self._saved = {k: os.environ.get(k) for k in ("NOTES_SECRET_KEY", "NOTES_CORS_ORIGINS", "NOTES_ENV")}
+        os.environ["NOTES_SECRET_KEY"] = "test-secret"
+
+    def tearDown(self):
+        for key, value in self._saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    def test_origins_are_split_on_commas(self):
+        os.environ["NOTES_CORS_ORIGINS"] = "https://app.example.com, https://admin.example.com"
+        self.assertEqual(load_settings().cors_origins,
+                         ("https://app.example.com", "https://admin.example.com"))
+
+    def test_origin_defaults_to_any(self):
+        os.environ.pop("NOTES_CORS_ORIGINS", None)
+        self.assertEqual(load_settings().cors_origins, ("*",))
+
+    def test_environment_defaults_to_development(self):
+        os.environ.pop("NOTES_ENV", None)
+        self.assertEqual(load_settings().environment, "development")
 
 
 class NoteTests(unittest.TestCase):
