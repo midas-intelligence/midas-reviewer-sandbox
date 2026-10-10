@@ -32,6 +32,19 @@ CREATE TABLE IF NOT EXISTS shares (
     PRIMARY KEY (note_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS tags (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id INTEGER NOT NULL REFERENCES users(id),
+    name    TEXT    NOT NULL,
+    UNIQUE (owner_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS note_tags (
+    note_id INTEGER NOT NULL REFERENCES notes(id) ON DELETE CASCADE,
+    tag_id  INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (note_id, tag_id)
+);
+
 CREATE INDEX IF NOT EXISTS notes_owner_idx ON notes (owner_id);
 """
 

@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.db import connect, init_db
 from app.security import has_role, hash_password, issue_token, read_token, verify_password
 from app.services import notes as note_service
+from app.services import tags as tag_service
 from app.services import users as user_service
 
 
@@ -55,6 +56,38 @@ class NoteTests(unittest.TestCase):
         note = note_service.create_note(self.conn, owner_id=self.alice.id, title="keep")
         self.assertFalse(note_service.delete_note(self.conn, note_id=note.id, user_id=self.bob.id))
         self.assertTrue(note_service.delete_note(self.conn, note_id=note.id, user_id=self.alice.id))
+
+    def test_a_tag_round_trips(self):
+        note = note_service.create_note(self.conn, owner_id=self.alice.id, title="tagged")
+        self.assertTrue(tag_service.add_tag(self.conn, note_id=note.id, user_id=self.alice.id,
+                                            name="Work"))
+        self.assertEqual(tag_service.tags_for_note(self.conn, note_id=note.id), ["work"])
+        self.assertTrue(tag_service.remove_tag(self.conn, note_id=note.id, user_id=self.alice.id,
+                                               name="work"))
+        self.assertEqual(tag_service.tags_for_note(self.conn, note_id=note.id), [])
+
+    def test_tag_names_are_normalised_and_bounded(self):
+        note = note_service.create_note(self.conn, owner_id=self.alice.id, title="n")
+        tag_service.add_tag(self.conn, note_id=note.id, user_id=self.alice.id, name="  Mixed Case  ")
+        self.assertEqual(tag_service.tags_for_note(self.conn, note_id=note.id), ["mixed case"])
+        with self.assertRaises(ValueError):
+            tag_service.add_tag(self.conn, note_id=note.id, user_id=self.alice.id, name="x" * 40)
+        with self.assertRaises(ValueError):
+            tag_service.add_tag(self.conn, note_id=note.id, user_id=self.alice.id, name="   ")
+
+    def test_a_stranger_cannot_tag_someone_elses_note(self):
+        note = note_service.create_note(self.conn, owner_id=self.alice.id, title="mine")
+        self.assertFalse(tag_service.add_tag(self.conn, note_id=note.id, user_id=self.bob.id,
+                                             name="sneaky"))
+        self.assertEqual(tag_service.tags_for_note(self.conn, note_id=note.id), [])
+
+    def test_filtering_by_tag_only_returns_visible_notes(self):
+        mine = note_service.create_note(self.conn, owner_id=self.alice.id, title="mine")
+        theirs = note_service.create_note(self.conn, owner_id=self.bob.id, title="theirs")
+        tag_service.add_tag(self.conn, note_id=mine.id, user_id=self.alice.id, name="sync")
+        tag_service.add_tag(self.conn, note_id=theirs.id, user_id=self.bob.id, name="sync")
+        self.assertEqual(tag_service.notes_with_tag(self.conn, user_id=self.alice.id, name="sync"),
+                         [mine.id])
 
     def test_listing_counts_only_what_the_user_may_see(self):
         note_service.create_note(self.conn, owner_id=self.alice.id, title="a")
