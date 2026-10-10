@@ -15,6 +15,8 @@ class Settings:
     secret_key: str
     token_ttl_seconds: int
     page_size: int
+    cors_origins: tuple[str, ...]
+    environment: str
 
 
 def _int_env(name: str, default: int) -> int:
@@ -27,6 +29,14 @@ def _int_env(name: str, default: int) -> int:
         raise ConfigError(f"{name} must be an integer") from exc
 
 
+def cors_origins() -> tuple[str, ...]:
+    """Origins the browser client is served from. Defaults to any."""
+    raw = os.environ.get("NOTES_CORS_ORIGINS")
+    if not raw:
+        return ("*",)
+    return tuple(origin.strip() for origin in raw.split(",") if origin.strip())
+
+
 def load_settings() -> Settings:
     """Read settings from the environment. Only the secret has no default."""
     secret = os.environ.get("NOTES_SECRET_KEY")
@@ -37,4 +47,6 @@ def load_settings() -> Settings:
         secret_key=secret,
         token_ttl_seconds=_int_env("NOTES_TOKEN_TTL", 3600),
         page_size=_int_env("NOTES_PAGE_SIZE", 25),
+        cors_origins=cors_origins(),
+        environment=os.environ.get("NOTES_ENV", "development"),
     )
