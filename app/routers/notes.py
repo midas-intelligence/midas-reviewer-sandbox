@@ -6,6 +6,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel
 
+from ..services import export as export_service
 from ..services import notes as note_service
 from .users import current_user
 
