@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS notes (
     title      TEXT    NOT NULL,
     body       TEXT    NOT NULL DEFAULT '',
     visibility TEXT    NOT NULL DEFAULT 'private',
+    view_count INTEGER NOT NULL DEFAULT 0,
     created_at TEXT    NOT NULL,
     updated_at TEXT    NOT NULL
 );

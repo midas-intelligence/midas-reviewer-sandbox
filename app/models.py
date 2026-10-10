@@ -19,6 +19,7 @@ class Note:
     title: str
     body: str
     visibility: str
+    view_count: int
     created_at: str
     updated_at: str
 
@@ -30,6 +31,7 @@ class Note:
             title=row["title"],
             body=row["body"],
             visibility=row["visibility"],
+            view_count=row["view_count"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

@@ -56,6 +56,18 @@ class NoteTests(unittest.TestCase):
         self.assertFalse(note_service.delete_note(self.conn, note_id=note.id, user_id=self.bob.id))
         self.assertTrue(note_service.delete_note(self.conn, note_id=note.id, user_id=self.alice.id))
 
+    def test_reading_a_note_counts_the_view(self):
+        note = note_service.create_note(self.conn, owner_id=self.alice.id, title="read me")
+        self.assertEqual(note_service.record_view(self.conn, note_id=note.id,
+                                                   user_id=self.alice.id), 1)
+        self.assertEqual(note_service.record_view(self.conn, note_id=note.id,
+                                                   user_id=self.alice.id), 2)
+        self.assertEqual(note_service.get_note(self.conn, note.id).view_count, 2)
+
+    def test_a_hidden_note_is_not_counted(self):
+        note = note_service.create_note(self.conn, owner_id=self.alice.id, title="private")
+        self.assertIsNone(note_service.record_view(self.conn, note_id=note.id, user_id=self.bob.id))
+
     def test_listing_counts_only_what_the_user_may_see(self):
         note_service.create_note(self.conn, owner_id=self.alice.id, title="a")
         note_service.create_note(self.conn, owner_id=self.bob.id, title="b")
