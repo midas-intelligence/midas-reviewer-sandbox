@@ -65,6 +65,21 @@ def count_notes(conn: sqlite3.Connection, *, user_id: int) -> int:
     return int(row["n"])
 
 
+def record_view(conn: sqlite3.Connection, *, note_id: int, user_id: int) -> int | None:
+    """Count a read of a note the user is allowed to see.
+
+    Returns the new count, or None when the note is not visible to them.
+    """
+    note = get_note(conn, note_id)
+    if note is None or not can_read(conn, note=note, user_id=user_id):
+        return None
+    current = conn.execute("SELECT view_count FROM notes WHERE id = ?", (note_id,)).fetchone()
+    count = int(current["view_count"]) + 1
+    conn.execute("UPDATE notes SET view_count = ? WHERE id = ?", (count, note_id))
+    conn.commit()
+    return count
+
+
 def update_note(
     conn: sqlite3.Connection,
     *,

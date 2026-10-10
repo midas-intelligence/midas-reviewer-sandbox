@@ -69,6 +69,7 @@ def get_note(note_id: int, conn: sqlite3.Connection = Depends(_conn), user=Depen
     note = note_service.get_note(conn, note_id)
     if note is None or not note_service.can_read(conn, note=note, user_id=user.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "note not found")
+    note_service.record_view(conn, note_id=note_id, user_id=user.id)
     return note.__dict__
 
 
