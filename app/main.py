@@ -7,7 +7,7 @@ from fastapi import FastAPI
 
 from .config import Settings, load_settings
 from .db import connect, init_db
-from .routers import notes, users
+from .routers import notes, users, workspaces
 
 app = FastAPI(title="Notes sandbox", version="0.4.0")
 
@@ -32,6 +32,7 @@ def connection() -> sqlite3.Connection:
 
 app.include_router(users.router)
 app.include_router(notes.router)
+app.include_router(workspaces.router)
 
 
 @app.get("/healthz")

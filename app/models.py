@@ -19,6 +19,7 @@ class Note:
     title: str
     body: str
     visibility: str
+    workspace_id: int | None
     created_at: str
     updated_at: str
 
@@ -30,9 +31,18 @@ class Note:
             title=row["title"],
             body=row["body"],
             visibility=row["visibility"],
+            workspace_id=row["workspace_id"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
+
+
+@dataclass(frozen=True)
+class Workspace:
+    id: int
+    name: str
+    owner_id: int
+    created_at: str
 
 
 @dataclass(frozen=True)
