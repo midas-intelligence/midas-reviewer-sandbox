@@ -4,7 +4,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 
-from ..models import Note
+from ..models import Note, Share
 from ..security import has_role
 
 
@@ -139,3 +139,14 @@ def share_note(conn: sqlite3.Connection, *, note_id: int, owner_id: int, user_id
     conn.execute("UPDATE notes SET visibility = 'shared', updated_at = ? WHERE id = ?", (_now(), note_id))
     conn.commit()
     return True
+
+
+def list_shares(conn: sqlite3.Connection, *, note_id: int, owner_id: int) -> list[Share] | None:
+    """Who the note is shared with. None when the note is missing or `owner_id` does not own it."""
+    note = get_note(conn, note_id)
+    if note is None or note.owner_id != owner_id:
+        return None
+    rows = conn.execute(
+        "SELECT note_id, user_id, role FROM shares WHERE note_id = ? ORDER BY user_id", (note_id,)
+    ).fetchall()
+    return [Share(note_id=r["note_id"], user_id=r["user_id"], role=r["role"]) for r in rows]
