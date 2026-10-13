@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, status
 from pydantic import BaseModel
 
 from ..services import notes as note_service
@@ -104,3 +104,15 @@ def share_note(
     if not ok:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "note not found")
     return {"note_id": note_id, "user_id": body.user_id, "role": body.role}
+
+
+@router.get("/{note_id}/shares")
+def list_shares(
+    note_id: int = Path(ge=1, le=2**63 - 1),  # SQLite rejects ids outside a signed 64-bit range
+    conn: sqlite3.Connection = Depends(_conn),
+    user=Depends(_user),
+):
+    shares = note_service.list_shares(conn, note_id=note_id, owner_id=user.id)
+    if shares is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "note not found")
+    return {"items": [s.__dict__ for s in shares]}

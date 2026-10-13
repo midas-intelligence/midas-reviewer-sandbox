@@ -8,6 +8,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db import connect, init_db
+from app.models import Share
 from app.security import has_role, hash_password, issue_token, read_token, verify_password
 from app.services import notes as note_service
 from app.services import users as user_service
@@ -55,6 +56,34 @@ class NoteTests(unittest.TestCase):
         note = note_service.create_note(self.conn, owner_id=self.alice.id, title="keep")
         self.assertFalse(note_service.delete_note(self.conn, note_id=note.id, user_id=self.bob.id))
         self.assertTrue(note_service.delete_note(self.conn, note_id=note.id, user_id=self.alice.id))
+
+    def test_the_owner_sees_who_a_note_is_shared_with(self):
+        carol = user_service.register(self.conn, email="carol@example.com", password="c" * 12)
+        note = note_service.create_note(self.conn, owner_id=self.alice.id, title="plan")
+        self.assertEqual(
+            note_service.list_shares(self.conn, note_id=note.id, owner_id=self.alice.id), []
+        )
+        note_service.share_note(self.conn, note_id=note.id, owner_id=self.alice.id,
+                                user_id=carol.id, role="viewer")
+        note_service.share_note(self.conn, note_id=note.id, owner_id=self.alice.id,
+                                user_id=self.bob.id, role="viewer")
+        note_service.share_note(self.conn, note_id=note.id, owner_id=self.alice.id,
+                                user_id=carol.id, role="editor")
+        self.assertEqual(
+            note_service.list_shares(self.conn, note_id=note.id, owner_id=self.alice.id),
+            [Share(note.id, self.bob.id, "viewer"), Share(note.id, carol.id, "editor")],
+        )
+
+    def test_only_the_owner_may_list_shares(self):
+        note = note_service.create_note(self.conn, owner_id=self.alice.id, title="plan")
+        note_service.share_note(self.conn, note_id=note.id, owner_id=self.alice.id,
+                                user_id=self.bob.id, role="editor")
+        self.assertIsNone(
+            note_service.list_shares(self.conn, note_id=note.id, owner_id=self.bob.id)
+        )
+        self.assertIsNone(
+            note_service.list_shares(self.conn, note_id=9999, owner_id=self.alice.id)
+        )
 
     def test_listing_counts_only_what_the_user_may_see(self):
         note_service.create_note(self.conn, owner_id=self.alice.id, title="a")
