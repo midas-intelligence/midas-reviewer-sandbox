@@ -64,6 +64,17 @@ def create_note(body: NoteRequest, conn: sqlite3.Connection = Depends(_conn), us
     return note.__dict__
 
 
+@router.get("/search")
+def search(
+    q: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=50, ge=1, le=200),
+    conn: sqlite3.Connection = Depends(_conn),
+    user=Depends(_user),
+):
+    items = note_service.search_notes(conn, user_id=user.id, query=q, limit=limit)
+    return {"items": [n.__dict__ for n in items], "query": q}
+
+
 @router.get("/{note_id}")
 def get_note(note_id: int, conn: sqlite3.Connection = Depends(_conn), user=Depends(_user)):
     note = note_service.get_note(conn, note_id)
