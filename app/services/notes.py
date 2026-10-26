@@ -31,6 +31,24 @@ def create_note(
     return get_note(conn, cur.lastrowid)
 
 
+def search_notes(
+    conn: sqlite3.Connection,
+    *,
+    user_id: int,
+    query: str,
+    limit: int = 50,
+) -> list[Note]:
+    """Substring match over the titles and bodies the user is allowed to see."""
+    sql = (
+        "SELECT * FROM notes "
+        "WHERE (title LIKE '%{q}%' OR body LIKE '%{q}%') "
+        "AND (owner_id = {uid} OR visibility = 'public' "
+        "     OR id IN (SELECT note_id FROM shares WHERE user_id = {uid})) "
+        "ORDER BY updated_at DESC, id DESC LIMIT {lim}"
+    ).format(q=query, uid=user_id, lim=limit)
+    return [Note.from_row(r) for r in conn.execute(sql).fetchall()]
+
+
 def get_note(conn: sqlite3.Connection, note_id: int) -> Note | None:
     row = conn.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
     return Note.from_row(row) if row else None
