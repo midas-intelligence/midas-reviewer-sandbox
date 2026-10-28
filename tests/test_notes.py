@@ -56,6 +56,18 @@ class NoteTests(unittest.TestCase):
         self.assertFalse(note_service.delete_note(self.conn, note_id=note.id, user_id=self.bob.id))
         self.assertTrue(note_service.delete_note(self.conn, note_id=note.id, user_id=self.alice.id))
 
+    def test_search_finds_notes_the_user_may_see(self):
+        note_service.create_note(self.conn, owner_id=self.alice.id, title="quarterly report")
+        note_service.create_note(self.conn, owner_id=self.bob.id, title="quarterly budget")
+        found = note_service.search_notes(self.conn, user_id=self.alice.id, query="quarterly")
+        self.assertEqual([n.title for n in found], ["quarterly report"])
+
+    def test_search_matches_the_body_too(self):
+        note_service.create_note(self.conn, owner_id=self.alice.id, title="misc",
+                                 body="mentions the quarterly numbers")
+        found = note_service.search_notes(self.conn, user_id=self.alice.id, query="quarterly")
+        self.assertEqual(len(found), 1)
+
     def test_listing_counts_only_what_the_user_may_see(self):
         note_service.create_note(self.conn, owner_id=self.alice.id, title="a")
         note_service.create_note(self.conn, owner_id=self.bob.id, title="b")
