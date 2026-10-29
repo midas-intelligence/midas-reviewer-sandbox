@@ -41,12 +41,14 @@ def search_notes(
     """Substring match over the titles and bodies the user is allowed to see."""
     sql = (
         "SELECT * FROM notes "
-        "WHERE (title LIKE '%{q}%' OR body LIKE '%{q}%') "
-        "AND (owner_id = {uid} OR visibility = 'public' "
-        "     OR id IN (SELECT note_id FROM shares WHERE user_id = {uid})) "
-        "ORDER BY updated_at DESC, id DESC LIMIT {lim}"
-    ).format(q=query, uid=user_id, lim=limit)
-    return [Note.from_row(r) for r in conn.execute(sql).fetchall()]
+        "WHERE (title LIKE ? OR body LIKE ?) "
+        "AND (owner_id = ? OR visibility = 'public' "
+        "     OR id IN (SELECT note_id FROM shares WHERE user_id = ?)) "
+        "ORDER BY updated_at DESC, id DESC LIMIT ?"
+    )
+    pattern = f"%{query}%"
+    params = (pattern, pattern, user_id, user_id, limit)
+    return [Note.from_row(r) for r in conn.execute(sql, params).fetchall()]
 
 
 def get_note(conn: sqlite3.Connection, note_id: int) -> Note | None:
