@@ -35,8 +35,14 @@ def current_user(conn, authorization: str | None, secret: str):
     return user
 
 
+def _conn():
+    from ..main import connection
+
+    return connection()
+
+
 @router.post("/register", status_code=201)
-def register(body: RegisterRequest, conn: sqlite3.Connection = Depends(lambda: None)):
+def register(body: RegisterRequest, conn: sqlite3.Connection = Depends(_conn)):
     if len(body.password) < 10:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "password must be at least 10 characters")
     try:
@@ -47,7 +53,7 @@ def register(body: RegisterRequest, conn: sqlite3.Connection = Depends(lambda: N
 
 
 @router.post("/login")
-def login(body: LoginRequest, conn: sqlite3.Connection = Depends(lambda: None)):
+def login(body: LoginRequest, conn: sqlite3.Connection = Depends(_conn)):
     user = user_service.authenticate(conn, email=body.email, password=body.password)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid credentials")

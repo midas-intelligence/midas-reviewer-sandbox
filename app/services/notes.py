@@ -136,6 +136,9 @@ def share_note(conn: sqlite3.Connection, *, note_id: int, owner_id: int, user_id
         " ON CONFLICT(note_id, user_id) DO UPDATE SET role = excluded.role",
         (note_id, user_id, role),
     )
-    conn.execute("UPDATE notes SET visibility = 'shared', updated_at = ? WHERE id = ?", (_now(), note_id))
+    conn.execute(
+        "UPDATE notes SET visibility = 'shared', updated_at = ? WHERE id = ? AND visibility = 'private'",
+        (_now(), note_id),
+    )
     conn.commit()
     return True

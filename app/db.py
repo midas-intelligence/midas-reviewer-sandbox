@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS notes_owner_idx ON notes (owner_id);
 
 def connect(database_url: str) -> sqlite3.Connection:
     """Open a connection. `sqlite:///path` and `sqlite://:memory:` are both accepted."""
-    path = database_url.split("sqlite://", 1)[-1].lstrip("/") or ":memory:"
+    path = database_url.split("sqlite://", 1)[-1].removeprefix("/") or ":memory:"
     if path == ":memory:":
         conn = sqlite3.connect(":memory:")
     else:
