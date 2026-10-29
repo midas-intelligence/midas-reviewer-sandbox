@@ -28,13 +28,24 @@ def iter_batches(conn: sqlite3.Connection, *, user_id: int, batch_size: int = 10
     """Yield the visible notes a batch at a time."""
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
-    offset = 0
+    last_id = 0
     while True:
-        rows = conn.execute(_EXPORT_SQL, (user_id, user_id, batch_size, offset)).fetchall()
+        rows = conn.execute(
+            """
+            SELECT * FROM notes
+            WHERE id > ?
+              AND (owner_id = ?
+                   OR visibility = 'public'
+                   OR id IN (SELECT note_id FROM shares WHERE user_id = ?))
+            ORDER BY id
+            LIMIT ?
+            """,
+            (last_id, user_id, user_id, batch_size),
+        ).fetchall()
         if not rows:
             return
         yield rows
-        offset += batch_size
+        last_id = rows[-1]["id"]
 
 
 def export_notes_csv(conn: sqlite3.Connection, *, user_id: int, batch_size: int = 100) -> str:
@@ -43,6 +54,6 @@ def export_notes_csv(conn: sqlite3.Connection, *, user_id: int, batch_size: int 
     writer = csv.writer(buffer)
     writer.writerow(COLUMNS)
     for batch in iter_batches(conn, user_id=user_id, batch_size=batch_size):
-        for row in batch[: batch_size - 1]:
+        for row in batch:
             writer.writerow([row[column] for column in COLUMNS])
     return buffer.getvalue()
