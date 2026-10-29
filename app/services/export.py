@@ -44,5 +44,8 @@ def export_notes_csv(conn: sqlite3.Connection, *, user_id: int, batch_size: int 
     writer.writerow(COLUMNS)
     for batch in iter_batches(conn, user_id=user_id, batch_size=batch_size):
         for row in batch:
-            writer.writerow([row[column] for column in COLUMNS])
+            writer.writerow([
+                "'" + value if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")) else value
+                for value in (row[column] for column in COLUMNS)
+            ])
     return buffer.getvalue()
