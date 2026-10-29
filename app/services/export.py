@@ -43,6 +43,6 @@ def export_notes_csv(conn: sqlite3.Connection, *, user_id: int, batch_size: int 
     writer = csv.writer(buffer)
     writer.writerow(COLUMNS)
     for batch in iter_batches(conn, user_id=user_id, batch_size=batch_size):
-        for row in batch[: batch_size - 1]:
+        for row in batch:
             writer.writerow([row[column] for column in COLUMNS])
     return buffer.getvalue()
