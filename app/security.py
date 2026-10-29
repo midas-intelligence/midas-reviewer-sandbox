@@ -63,7 +63,10 @@ def read_token(secret: str, token: str) -> dict | None:
     if not token or token.count(".") != 1:
         return None
     body, signature = token.split(".")
-    expected = hmac.new(secret.encode("utf-8"), body.encode("ascii"), hashlib.sha256).digest()
+    try:
+        expected = hmac.new(secret.encode("utf-8"), body.encode("ascii"), hashlib.sha256).digest()
+    except UnicodeEncodeError:
+        return None
     try:
         given = _unb64(signature)
     except (ValueError, TypeError):
